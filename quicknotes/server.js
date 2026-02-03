@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
@@ -11,20 +11,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize SQLite database
-const db = new Database('notes.db');
+// Simple JSON file database
+const DB_FILE = path.join(__dirname, 'data.json');
 
-// Create tables
-db.exec(`
-    CREATE TABLE IF NOT EXISTS notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        content TEXT,
-        color TEXT DEFAULT '#fef3c7',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-`);
+// Initialize database file if it doesn't exist
+function initDB() {
+    if (!fs.existsSync(DB_FILE)) {
+        fs.writeFileSync(DB_FILE, JSON.stringify({ notes: [], nextId: 1 }, null, 2));
+    }
+}
+
+function readDB() {
+    initDB();
+    const data = fs.readFileSync(DB_FILE, 'utf-8');
+    return JSON.parse(data);
+}
+
+function writeDB(data) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
 
 console.log('📝 Database initialized');
 
@@ -33,7 +38,8 @@ console.log('📝 Database initialized');
 // GET all notes
 app.get('/api/notes', (req, res) => {
     try {
-        const notes = db.prepare('SELECT * FROM notes ORDER BY updated_at DESC').all();
+        const db = readDB();
+        const notes = db.notes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         res.json(notes);
     } catch (error) {
         console.error('Error fetching notes:', error);
@@ -44,7 +50,8 @@ app.get('/api/notes', (req, res) => {
 // GET single note
 app.get('/api/notes/:id', (req, res) => {
     try {
-        const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id);
+        const db = readDB();
+        const note = db.notes.find(n => n.id === parseInt(req.params.id));
         if (!note) {
             return res.status(404).json({ error: 'Note not found' });
         }
@@ -64,12 +71,21 @@ app.post('/api/notes', (req, res) => {
             return res.status(400).json({ error: 'Title is required' });
         }
 
-        const stmt = db.prepare(
-            'INSERT INTO notes (title, content, color) VALUES (?, ?, ?)'
-        );
-        const result = stmt.run(title.trim(), content || '', color || '#fef3c7');
+        const db = readDB();
+        const now = new Date().toISOString();
         
-        const newNote = db.prepare('SELECT * FROM notes WHERE id = ?').get(result.lastInsertRowid);
+        const newNote = {
+            id: db.nextId++,
+            title: title.trim(),
+            content: content || '',
+            color: color || '#fef3c7',
+            created_at: now,
+            updated_at: now
+        };
+        
+        db.notes.push(newNote);
+        writeDB(db);
+        
         res.status(201).json(newNote);
     } catch (error) {
         console.error('Error creating note:', error);
@@ -81,26 +97,27 @@ app.post('/api/notes', (req, res) => {
 app.put('/api/notes/:id', (req, res) => {
     try {
         const { title, content, color } = req.body;
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
 
-        const existing = db.prepare('SELECT * FROM notes WHERE id = ?').get(id);
-        if (!existing) {
+        const db = readDB();
+        const noteIndex = db.notes.findIndex(n => n.id === id);
+        
+        if (noteIndex === -1) {
             return res.status(404).json({ error: 'Note not found' });
         }
 
-        const stmt = db.prepare(`
-            UPDATE notes 
-            SET title = ?, content = ?, color = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        `);
-        stmt.run(
-            title || existing.title,
-            content !== undefined ? content : existing.content,
-            color || existing.color,
-            id
-        );
+        const existing = db.notes[noteIndex];
+        const updatedNote = {
+            ...existing,
+            title: title || existing.title,
+            content: content !== undefined ? content : existing.content,
+            color: color || existing.color,
+            updated_at: new Date().toISOString()
+        };
+        
+        db.notes[noteIndex] = updatedNote;
+        writeDB(db);
 
-        const updatedNote = db.prepare('SELECT * FROM notes WHERE id = ?').get(id);
         res.json(updatedNote);
     } catch (error) {
         console.error('Error updating note:', error);
@@ -111,14 +128,18 @@ app.put('/api/notes/:id', (req, res) => {
 // DELETE note
 app.delete('/api/notes/:id', (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
         
-        const existing = db.prepare('SELECT * FROM notes WHERE id = ?').get(id);
-        if (!existing) {
+        const db = readDB();
+        const noteIndex = db.notes.findIndex(n => n.id === id);
+        
+        if (noteIndex === -1) {
             return res.status(404).json({ error: 'Note not found' });
         }
 
-        db.prepare('DELETE FROM notes WHERE id = ?').run(id);
+        db.notes.splice(noteIndex, 1);
+        writeDB(db);
+        
         res.json({ message: 'Note deleted successfully' });
     } catch (error) {
         console.error('Error deleting note:', error);
@@ -134,11 +155,14 @@ app.get('/api/search', (req, res) => {
             return res.json([]);
         }
         
-        const notes = db.prepare(`
-            SELECT * FROM notes 
-            WHERE title LIKE ? OR content LIKE ?
-            ORDER BY updated_at DESC
-        `).all(`%${q}%`, `%${q}%`);
+        const db = readDB();
+        const query = q.toLowerCase();
+        const notes = db.notes
+            .filter(n => 
+                n.title.toLowerCase().includes(query) || 
+                n.content.toLowerCase().includes(query)
+            )
+            .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         
         res.json(notes);
     } catch (error) {
@@ -170,6 +194,5 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n👋 Shutting down gracefully...');
-    db.close();
     process.exit(0);
 });
