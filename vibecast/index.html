@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCast 🎵 - Mood Playlist Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="grain"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    
+    <main class="container">
+        <header class="hero">
+            <h1 class="title">
+                <span class="title-vibe">Vibe</span><span class="title-cast">Cast</span>
+                <span class="emoji">🎵</span>
+            </h1>
+            <p class="tagline">What's your vibe today? Let us craft your perfect playlist.</p>
+        </header>
+
+        <section class="mood-selection" id="moodSection">
+            <h2 class="section-title">Pick Your Mood</h2>
+            <div class="mood-grid">
+                <button class="mood-card" data-mood="happy" onclick="selectMood('happy')">
+                    <span class="mood-emoji">😊</span>
+                    <span class="mood-label">Happy</span>
+                    <span class="mood-desc">Feeling great!</span>
+                </button>
+                <button class="mood-card" data-mood="chill" onclick="selectMood('chill')">
+                    <span class="mood-emoji">😌</span>
+                    <span class="mood-label">Chill</span>
+                    <span class="mood-desc">Just relaxing</span>
+                </button>
+                <button class="mood-card" data-mood="energetic" onclick="selectMood('energetic')">
+                    <span class="mood-emoji">⚡</span>
+                    <span class="mood-label">Energetic</span>
+                    <span class="mood-desc">Let's go!</span>
+                </button>
+                <button class="mood-card" data-mood="sad" onclick="selectMood('sad')">
+                    <span class="mood-emoji">😢</span>
+                    <span class="mood-label">Sad</span>
+                    <span class="mood-desc">In my feels</span>
+                </button>
+                <button class="mood-card" data-mood="focused" onclick="selectMood('focused')">
+                    <span class="mood-emoji">🎯</span>
+                    <span class="mood-label">Focused</span>
+                    <span class="mood-desc">Work mode</span>
+                </button>
+                <button class="mood-card" data-mood="romantic" onclick="selectMood('romantic')">
+                    <span class="mood-emoji">💕</span>
+                    <span class="mood-label">Romantic</span>
+                    <span class="mood-desc">Feeling love</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="playlist-section hidden" id="playlistSection">
+            <button class="back-btn" onclick="goBack()">← Pick Another Mood</button>
+            <div class="playlist-header">
+                <span class="playlist-mood-emoji" id="playlistMoodEmoji"></span>
+                <h2 class="playlist-title" id="playlistTitle"></h2>
+            </div>
+            <div class="playlist-container">
+                <ul class="playlist" id="playlist"></ul>
+            </div>
+            <div class="actions">
+                <button class="shuffle-btn" onclick="shufflePlaylist()">
+                    🔀 Shuffle
+                </button>
+                <button class="save-btn" onclick="savePlaylist()">
+                    💾 Save Playlist
+                </button>
+            </div>
+        </section>
+
+        <section class="saved-section" id="savedSection">
+            <h2 class="section-title">Your Saved Playlists</h2>
+            <div class="saved-playlists" id="savedPlaylists"></div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Made with 💜 at HackathonX 2026</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
